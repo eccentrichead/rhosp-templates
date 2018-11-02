@@ -1,0 +1,12 @@
+[DEFAULT]
+undercloud_hostname = undercloud.localdomain
+local_ip = 172.16.12.5/24
+subnets = ctlplane-subnet
+local_interface = eth1
+[auth]
+[ctlplane-subnet]
+cidr = 172.16.12.0/24
+dhcp_start = 172.16.12.20
+dhcp_end = 172.16.12.40
+inspection_iprange = 172.16.12.100,172.16.12.150
+gateway = 172.16.12.1
