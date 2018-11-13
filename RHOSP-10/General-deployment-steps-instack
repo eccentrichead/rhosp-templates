@@ -1,0 +1,133 @@
+1) Delete beaker repo:
+
+rm -rf /etc/yum.repos.d/*
+
+2) Register the system with OSP 10 repos.
+
+rpm -ivh http://satellite.pnq.cee.redhat.com/pub/katello-ca-consumer-satellite.pnq.cee.redhat.com-1.0-1.noarch.rpm
+subscription-manager register --org="Redhat_Inc" --activationkey="RHOS10"
+
+3) Install the required packages.
+
+yum install lftp wget virt-manager dejavu-sans-fonts firefox xorg-x11-xauth instack-undercloud openvswitch net-tools virt-install libvirt libguestfs-tools-c nfs-utils -y
+
+4) Stop the networkmanager
+
+systemctl stop NetworkManager ; systemctl disable NetworkManager
+
+5) Start the required services.
+
+for i in libvirtd openvswitch ; do systemctl restart $i ; done
+
+6) Enable the ipv4 forwarding.
+
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p
+
+7) Create stack user with sudo priviledges.
+
+useradd stack
+echo root123 | passwd stack --stdin
+echo "stack ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/stack
+chmod 0440 /etc/sudoers.d/stack
+sed -i 's/Defaults requiretty/Defaults !requiretty/' /etc/sudoers
+
+8) Create soft link to avoid space constraint issue for overcloud nodes.
+
+rm -rf /var/lib/libvirt/images
+mkdir /home/images
+ln -s /home/images /var/lib/libvirt/images
+
+9) Configure the openvswitch to provide network for overcloud deployment.
+
+ovs-vsctl add-br vswitch
+ovs-vsctl add-port vswitch external tag=10 -- set Interface external type=internal
+ovs-vsctl add-port vswitch external11 tag=11 -- set Interface external11 type=internal
+ovs-vsctl add-port vswitch storage tag=20 -- set Interface storage type=internal
+ovs-vsctl add-port vswitch api tag=30 -- set Interface api type=internal
+ovs-vsctl add-port vswitch storage_mgmt tag=40 -- set Interface storage_mgmt type=internal
+ovs-vsctl add-port vswitch tenant tag=50 -- set Interface tenant type=internal
+
+10) Configure the IP ranges.
+
+ifconfig external 10.11.48.254/24
+ifconfig external11 10.11.49.254/24
+ifconfig api 192.168.124.254/24
+ifconfig tenant 192.168.123.254/24
+ifconfig storage_mgmt 192.168.128.254/24
+ifconfig storage 192.168.125.254/24
+
+11) Switch to stack user and set the environment variable for undercloud deployment.
+
+su - stack
+wget http://vault.gsslab.pnq.redhat.com/vault/jaison/images/rhel-guest-image-7.3-35.x86_64.qcow2
+
+export DIB_LOCAL_IMAGE=/home/stack/rhel-guest-image-7.3-35.x86_64.qcow2
+export NODE_COUNT=4
+export REG_METHOD=satellite
+export REG_ORG='Redhat_Inc'
+export REG_SAT_URL='http://satellite.pnq.cee.redhat.com'
+export REG_ACTIVATION_KEY='RHOS10'
+
+instack-virt-setup
+
+12) After the successful undercoud deployment. Login into undercloud node and verify that stack user is created successfully. Verify that it's registered with OSP 10 repos.
+
+subscription-manager register --org="Redhat_Inc" --activationkey="RHOS10" --force
+
+13) Shutdown the undercloud node. Change the memory of undercoud node to 10000 MB and vcpu count to 2. Power on the nodes after changing the HW specifications.
+
+poweroff
+
+14) Login into undercloud node and start the undercloud installation as stack user.
+
+su - stack
+sudo yum install -y wget python-rdomanager-oscplugin
+openstack undercloud install | tee undercloud_deployment.txt
+
+15) Everything need to be done on undercloud node as stack user.
+
+source stackrc
+for i in `nova flavor-list | grep -iv baremetal |grep True | cut -f2 -d\|` ; do nova flavor-delete $i ; done
+openstack flavor create --id auto --ram 5000 --disk 40 --vcpus 2 control
+openstack flavor create --id auto --ram 4000 --disk 40 --vcpus 1 compute
+openstack flavor set --property "cpu_arch"="x86_64" --property "capabilities:boot_option"="local" --property "capabilities:profile"="control" control
+openstack flavor set --property "cpu_arch"="x86_64" --property "capabilities:boot_option"="local" --property "capabilities:profile"="compute" compute
+
+
+sudo yum install rhosp-director-images rhosp-director-images-ipa -y
+mkdir ~/images; cd ~/images
+for i in `ls /usr/share/rhosp-director-images/*latest* ` ; do tar xvf $i ; done
+openstack overcloud image upload
+
+
+neutron subnet-list
+neutron subnet-update <subnet id> --dns-nameserver 192.168.122.1
+
+16) Importing the nodes in ironic DB and tagging the nodes.
+
+openstack baremetal import --json instackenv.json
+ironic node-list
+openstack baremetal configure boot
+
+
+For three controller nodes:
+
+ironic node-update <ironic node id> replace properties/capabilities="profile:control,boot_option:local"
+
+For one compute node:
+
+ironic node-update <ironic node id> replace properties/capabilities="profile:compute,boot_option:local"
+
+17) From physical node as root user to add second NIC to all overcloud VMs.
+
+for i in `virsh list --all --name | grep baremetalbrbm ` ; do virsh attach-interface --domain $i --type bridge --source vswitch --model virtio --config; virt-xml $i --edit 2 --network virtualport_type=openvswitch ; done
+
+18) Ran the introspection.
+
+openstack baremetal introspection bulk start
+python -m json.tool uuid_introspection.json
+
+19) Verify that introspection is completed succesfully:
+
+openstack baremetal introspection bulk status
