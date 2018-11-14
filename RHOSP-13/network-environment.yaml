@@ -1,0 +1,39 @@
+resource_registry:
+  OS::TripleO::Controller::Net::SoftwareConfig:
+    ../home/stack/templates/controller.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig:
+    ../home/stack/templates/compute.yaml
+
+parameter_defaults:
+
+  ControlPlaneSubnetCidr: '24'
+  ControlPlaneDefaultRoute: 172.16.12.5
+  EC2MetadataIp: 172.16.12.5
+  StorageNetCidr: '192.168.20.0/24'
+  StorageMgmtNetCidr: '192.168.30.0/24'
+  InternalApiNetCidr: '192.168.40.0/24'
+  TenantNetCidr: '192.168.50.0/24'
+  ExternalNetCidr: '10.10.10.0/24'
+  ManagementNetCidr: '172.16.12.0/24'
+
+  StorageNetworkVlanID: 20
+  StorageMgmtNetworkVlanID: 30
+  InternalApiNetworkVlanID: 40
+  TenantNetworkVlanID: 50
+  ExternalNetworkVlanID: 10
+
+
+  StorageAllocationPools: [{'start': '192.168.20.10', 'end': '192.168.20.100'}]
+  StorageMgmtAllocationPools: [{'start': '192.168.30.10', 'end': '192.168.30.100'}]
+  InternalApiAllocationPools: [{'start': '192.168.40.10', 'end': '192.168.40.100'}]
+  TenantAllocationPools: [{'start': '192.168.50.10', 'end': '192.168.50.100'}]
+  ExternalAllocationPools: [{'start': '10.10.10.10', 'end': '10.10.10.100'}]
+  ManagementAllocationPools: [{'start': '172.16.12.10', 'end': '172.16.12.100'}]
+
+  ExternalInterfaceDefaultRoute: '172.16.12.5'
+
+  DnsServers: ["192.168.122.1"]
+
+  NeutronNetworkType: 'vxlan,vlan'
+  NeutronTunnelTypes: 'vxlan'
+  NeutronNetworkVLANRanges: 'datacentre:1:1000'
