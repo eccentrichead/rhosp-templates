@@ -1,0 +1,106 @@
+## NON infrared deployment with custom single-nic vlan configuration ##
+
+After reserved the beaker system do the following on the host:
+
+1) Delete beaker repo: (optional)
+rm -rf /etc/yum.repos.d/*
+
+2) Register the system with OSP 10 repos.
+rpm -ivh http://dell-r430-17.gsslab.pnq2.redhat.com/pub/katello-ca-consumer-latest.noarch.rpm
+subscription-manager register --org="RED_HAT_ECS" --activationkey="RHOS13"
+
+3) Install the required packages.
+yum install lftp wget libguestfs-tools python-virtualbmc python-setuptools virt-manager dejavu-sans-fonts firefox xorg-x11-xauth instack-undercloud openvswitch net-tools virt-install libvirt libguestfs-tools-c nfs-utils -y
+
+4) Stop the networkmanager
+systemctl stop NetworkManager ; systemctl disable NetworkManager
+
+5) Start the required services.
+for i in libvirtd openvswitch ; do systemctl restart $i ; done
+
+6) Enable the ipv4 forwarding.
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p
+
+7) Create stack user with sudo priviledges.
+useradd stack
+echo root123 | passwd stack --stdin
+echo "stack ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/stack
+chmod 0440 /etc/sudoers.d/stack
+sed -i 's/Defaults requiretty/Defaults !requiretty/' /etc/sudoers
+
+8) Create soft link to avoid space constraint issue for overcloud nodes.
+rm -rf /var/lib/libvirt/images
+mkdir /home/images
+ln -s /home/images /var/lib/libvirt/images
+
+9) Configure the openvswitch to provide network for overcloud deployment.
+ovs-vsctl add-br vswitch
+ovs-vsctl add-port vswitch external tag=10 -- set Interface external type=internal
+ovs-vsctl add-port vswitch external-v11 tag=11 -- set Interface external-v11 type=internal   <-- # optional
+ovs-vsctl add-port vswitch external-v12 tag=12 -- set Interface external-v12 type=internal   <-- # optional
+ovs-vsctl add-port vswitch storage tag=20 -- set Interface storage type=internal
+ovs-vsctl add-port vswitch storage_mgmt tag=30 -- set Interface storage_mgmt type=internal
+ovs-vsctl add-port vswitch api tag=40 -- set Interface api type=internal
+ovs-vsctl add-port vswitch tenant tag=50 -- set Interface tenant type=internal
+
+10) Create a management bridge which is a plain linux bridge, this can be done using the virt-manager gui
+
+11) Assign the ips from the defined ranges for the VLANs:
+ifconfig external 10.10.10.254/24
+fconfig external-v11 10.10.11.254/24     <-- # optional
+ifconfig external-v12 10.10.12.254/24    <-- # optional
+ifconfig storage 192.168.20.254/24
+ifconfig storage_mgmt 192.168.30.254/24
+ifconfig api 192.168.40.254/24
+ifconfig tenant 192.168.50.254/24
+ifconfig virbr1 172.16.12.254/24         <-- # mgmt bridge device.
+
+12) To make the ip changes persistent across reboots on the run setup the ifup-local script with below options:
+ * Create the file : /sbin/ifup-local
+ * set the executable permissions: chmod +x /sbin/ifup-local
+ * add the IPs for the vlan interfaces:
+ ----
+ #!/bin/bash
+if [ "$1" == "em1" ]; then
+  /usr/sbin/ifconfig external 10.10.10.254/24
+  /usr/sbin/ifconfig external-v11 10.10.11.254/24      <-- # optional
+  /usr/sbin/ifconfig external-v12 10.10.12.254/24      <-- # optional
+  /usr/sbin/ifconfig storage 192.168.20.254/24
+  /usr/sbin/ifconfig storage_mgmt 192.168.30.254/24
+  /usr/sbin/ifconfig api 192.168.40.254/24
+  /usr/sbin/ifconfig tenant 192.168.50.254/24
+  /usr/sbin/ifconfig virbr1 172.16.12.254/24
+fi
+ ----
+
+13) Download the qcow2 image and modify to deploy the undercloud VM:
+su - stack
+cd /home/images
+wget http://vault.gsslab.pnq.redhat.com/vault/jaison/images/rhel-server-7.5-x86_64-kvm.qcow2
+export LIBGUESTFS_BACKEND=direct
+virt-customize -a /home/stack/rhel-server-7.5-x86_64-kvm.qcow2 --root-password password:redhat
+virt-customize -a /home/stack/rhel-server-7.5-x86_64-kvm.qcow2 --run-command 'rpm -ivh http://dell-r430-17.gsslab.pnq2.redhat.com/pub/katello-ca-consumer-latest.noarch.rpm'
+virt-customize -a /home/stack/rhel-server-7.5-x86_64-kvm.qcow2 --run-command 'yum remove cloud-init -y'
+
+14) resize disk and the filesystem of the qcow2 image to have atleast 80GB of disk space:
+qemu-img info rhel-server-7.5-x86_64-kvm.qcow2
+qemu-img resize rhel-server-7.5-x86_64-kvm.qcow2 +70G
+cp rhel-server-7.5-x86_64-kvm.qcow2 rhel-server-7.5-x86_64-kvm-orig.qcow2
+virt-resize –expand /dev/sda1 rhel-server-7.5-x86_64-kvm-orig.qcow2 rhel-server-7.5-x86_64-kvm.qcow2
+
+* We will need to perform the xfs_growfs once we boot and log into the undercloud VM.
+
+14) Create a VM and boot it with the modified qcow2 image from the virt-manager gui. This undercloud VM
+should have two interfaces:
+eth0 connected to default virbr0 bridge.
+eth1 connected to the management bridge.
+
+15) Create 2 or more baremetal VMs from the virt-manager gui with 60G disks, 8GB RAM (for controller only)  and 6GB min
+for the compute nodes. Ensure the guest machines have two interfaces each:
+eth0 connected to management bridge
+eth1 connected to the vswitch bridge. To add this do:
+------
+ for i in `virsh list --all --name | grep brbm ` ; do virsh attach-interface --domain $i --type bridge --source vswitch --model virtio --config; virt-xml $i --edit 2 --network virtualport_type=openvswitch ; done
+------
+Ensure the guests are named uniformly like brbm-node-1... brbm-node-n.. to use the exact same command provided as above.
