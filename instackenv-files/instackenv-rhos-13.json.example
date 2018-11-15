@@ -1,0 +1,53 @@
+{
+  "ssh-user": "root",
+  "power_manager": "nova.virt.baremetal.virtual_power_driver.VirtualPowerManager",
+  "host-ip": "172.16.12.254",
+  "arch": "x86_64",
+  "nodes": [
+    {
+      "arch": "x86_64",
+      "pm_user": "root",
+      "pm_type": "ipmi",
+      "pm_addr": "172.16.12.254",
+      "pm_port": "8000",
+      "pm_password": "redhat",
+      "mac": [
+        "52:54:00:de:83:d3"
+      ],
+      "name": "controller-0",
+      "cpu": "4",
+      "memory": "8192",
+      "disk": "40"
+    },
+    {
+      "pm_user": "root",
+      "pm_addr": "172.16.12.254",
+      "pm_port": "8001",
+      "pm_type": "ipmi",
+      "pm_password": "redhat",
+      "mac": [
+        "52:54:00:98:8e:cf"
+      ],
+      "name": "compute-0",
+      "cpu": "4",
+      "memory": "6144",
+      "disk": "40",
+      "arch": "x86_64"
+    },
+    {
+      "pm_user": "root",
+      "pm_addr": "172.16.12.254",
+      "pm_port": "8002",
+      "pm_type": "ipmi",
+      "pm_password": "redhat",
+      "mac": [
+        "52:54:00:f4:74:5b"
+      ],
+      "name": "compute-1",
+      "cpu": "4",
+      "memory": "6144",
+      "disk": "40",
+      "arch": "x86_64"
+
+    }]
+    }
