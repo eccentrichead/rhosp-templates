@@ -89,7 +89,7 @@ qemu-img resize rhel-server-7.5-x86_64-kvm.qcow2 +70G
 cp rhel-server-7.5-x86_64-kvm.qcow2 rhel-server-7.5-x86_64-kvm-orig.qcow2
 virt-resize –expand /dev/sda1 rhel-server-7.5-x86_64-kvm-orig.qcow2 rhel-server-7.5-x86_64-kvm.qcow2
 
-* We will need to perform the xfs_growfs once we boot and log into the undercloud VM.
+**We will need to perform the xfs_growfs once we boot and log into the undercloud VM.
 
 14) Create a VM and boot it with the modified qcow2 image from the virt-manager gui. This undercloud VM
 should have two interfaces:
@@ -103,4 +103,28 @@ eth1 connected to the vswitch bridge. To add this do:
 ------
  for i in `virsh list --all --name | grep brbm ` ; do virsh attach-interface --domain $i --type bridge --source vswitch --model virtio --config; virt-xml $i --edit 2 --network virtualport_type=openvswitch ; done
 ------
-Ensure the guests are named uniformly like brbm-node-1... brbm-node-n.. to use the exact same command provided as above.
+**Ensure the guests are named uniformly like brbm-node-1... brbm-node-n.. to use the exact same command provided as above.
+
+16) Create the vmbc ports for the brbm guests:
+vbmc add --username root --password redhat --port 8000 brbmbaremetal-0
+vbmc add --username root --password redhat --port 8001 brbmbaremetal-1
+vbmc add --username root --password redhat --port 8002 brbmbaremetal-2
+vbmc add --username root --password redhat --port 8003 brbmbaremetal-3
+
+vbmc start brbmbaremetal-0
+vbmc start brbmbaremetal-1
+vbmc start brbmbaremetal-2
+vbmc start brbmbaremetal-3
+
+vbmc list
+
+17) Add the iptables rules for allowing these vbmc UDP ports:
+iptables -I  INPUT 2 -p udp --dport 8000 -j ACCEPT
+iptables -I  INPUT 3 -p udp --dport 8001 -j ACCEPT
+iptables -I  INPUT 6 -p udp --dport 8002 -j ACCEPT
+iptables -I  INPUT 4 -p udp --dport 8003 -j ACCEPT
+
+18) SSH to undercloud node. The guest should be available from the virt-manager console or you can find the IP with
+"arp -n" output on the server.
+
+19)
