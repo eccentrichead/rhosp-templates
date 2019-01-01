@@ -1,39 +1,28 @@
+# This file is only applicable to the ip ranges used in this specfic deployment. This needs to be changed
+# for specific environment.
 resource_registry:
-  OS::TripleO::Controller::Net::SoftwareConfig:
-    ../home/stack/templates/controller.yaml
-  OS::TripleO::Compute::Net::SoftwareConfig:
-    ../home/stack/templates/compute.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/controller.yaml
+# OS::TripleO::CephStorage::Net::SoftwareConfig: nic-configs/ceph-storage.yaml
 
 parameter_defaults:
-
   ControlPlaneSubnetCidr: '24'
-  ControlPlaneDefaultRoute: 172.16.12.5
-  EC2MetadataIp: 172.16.12.5
-  StorageNetCidr: '192.168.20.0/24'
-  StorageMgmtNetCidr: '192.168.30.0/24'
-  InternalApiNetCidr: '192.168.40.0/24'
-  TenantNetCidr: '192.168.50.0/24'
-  ExternalNetCidr: '10.10.10.0/24'
-  ManagementNetCidr: '172.16.12.0/24'
-
-  StorageNetworkVlanID: 20
-  StorageMgmtNetworkVlanID: 30
-  InternalApiNetworkVlanID: 40
-  TenantNetworkVlanID: 50
-  ExternalNetworkVlanID: 10
-
-
-  StorageAllocationPools: [{'start': '192.168.20.10', 'end': '192.168.20.100'}]
-  StorageMgmtAllocationPools: [{'start': '192.168.30.10', 'end': '192.168.30.100'}]
-  InternalApiAllocationPools: [{'start': '192.168.40.10', 'end': '192.168.40.100'}]
-  TenantAllocationPools: [{'start': '192.168.50.10', 'end': '192.168.50.100'}]
-  ExternalAllocationPools: [{'start': '10.10.10.10', 'end': '10.10.10.100'}]
-  ManagementAllocationPools: [{'start': '172.16.12.10', 'end': '172.16.12.100'}]
-
-  ExternalInterfaceDefaultRoute: '172.16.12.5'
-
+  ControlPlaneDefaultRoute: 172.16.0.10
+  EC2MetadataIp: 172.16.0.10
+  ExternalNetCidr: 10.10.10.0/24
+  ExternalAllocationPools: [{"start": "10.10.10.20", "end": "10.10.10.100"}]
+  ExternalInterfaceDefaultRoute: 10.0.0.254
+  InternalApiNetCidr: 192.168.40.0/24
+  InternalApiAllocationPools: [{"start": "192.168.40.10", "end": "192.168.40.100"}]
+  StorageNetCidr: 192.168.20.0/24
+  StorageAllocationPools: [{"start": "192.168.20.10", "end": "192.168.20.100"}]
+  StorageMgmtNetCidr: 192.168.30.0/24
+  StorageMgmtAllocationPools: [{"start": "192.168.30.10", "end": "192.168.30.100"}]
+  TenantNetCidr: 192.168.50.0/24
+  TenantAllocationPools: [{"start": "192.168.50.10", "end": "192.168.50.100"}]
   DnsServers: ["192.168.122.1"]
-
-  NeutronNetworkType: 'vxlan,vlan'
-  NeutronTunnelTypes: 'vxlan'
-  NeutronNetworkVLANRanges: 'datacentre:1:1000'
+  NeutronExternalNetworkBridge: "''"
+  NeutronNetworkType: 'vlan,vxlan'
+  NeutronTunnelTypes: vxlan
+  NeutronNetworkVLANRanges: tenant:1000:2000
+  NtpServer: 172.16.0.10
