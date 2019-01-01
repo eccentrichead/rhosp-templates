@@ -1,4 +1,5 @@
 heat_template_version: queens
+
 description: >
   Software Config to drive os-net-config to configure VLANs for the Controller role.
 parameters:
@@ -58,7 +59,7 @@ parameters:
     description: The default route of the control plane network.
     type: string
   ExternalInterfaceDefaultRoute:
-    default: '172.16.12.5'
+    default: '172.16.0.10'
     description: default route for the external network
     type: string
   DnsServers: # Override this via parameter_defaults
