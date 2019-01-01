@@ -127,4 +127,4 @@ iptables -I  INPUT 4 -p udp --dport 8003 -j ACCEPT
 18) SSH to undercloud node. The guest should be available from the virt-manager console or you can find the IP with
 "arp -n" output on the server.
 
-19)
+19) modify the undercloud.conf as per the network setup. Refer to
