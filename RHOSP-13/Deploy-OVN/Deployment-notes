@@ -1,4 +1,5 @@
 ## Deploying OVN in RHOSP13 (Fresh deploy only)
+NOTE: This is a basic OVN deployment and does not cover deploying DVR
 
 Support for OVN is included from RHOSP13. The steps to deploy OVN is as below:
 
