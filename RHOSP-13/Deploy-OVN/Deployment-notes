@@ -6,7 +6,10 @@ Support for OVN is included from RHOSP13. The steps to deploy OVN is as below:
 1. If using the undercloud as local registry for the containers (Preferred), ensure the ovn-ha and ovn-ha-dvr containers
    are available. By default this will not be present. In order to add/sync the ovn container, execute the below command:
    ~~~
-   $ openstack overcloud container image prepare -e openstack-tripleo-heat-templates-rendered/environments/services-docker/neutron-ovn-ha.yaml -e openstack-tripleo-heat-templates-rendered/environments/services-docker/ --namespace=registry.access.redhat.com/rhosp13 --push-destination=172.16.0.10:8787  --prefix=openstack- --tag-from-label {version}-{release} --output-env-file=/home/stack/templates/overcloud_images.yaml \
+   $ openstack overcloud container image prepare -e openstack-tripleo-heat-templates-rendered/environments/services-docker/neutron-ovn-ha.yaml \
+     -e openstack-tripleo-heat-templates-rendered/environments/services-docker/neutron-ovn-dvr-ha.yaml \
+     --namespace=registry.access.redhat.com/rhosp13 --push-destination=172.16.0.10:8787  --prefix=openstack- \
+     --tag-from-label {version}-{release} --output-env-file=/home/stack/templates/overcloud_images.yaml \
      --output-images-file /home/stack/local_registry_images.yaml
 
    $ sudo openstack overcloud container image upload \
